@@ -1,10 +1,10 @@
 extern crate portaudio;
 
 use portaudio as pa;
+use std::io::{stdin, stdout, Write};
 use termion::event::Key;
 use termion::input::TermRead;
 use termion::raw::IntoRawMode;
-use std::io::{stdin, stdout, Write};
 
 mod note;
 
@@ -33,12 +33,15 @@ fn run() -> Result<(), pa::Error> {
         pa.default_output_stream_settings(CHANNELS, note::SAMPLE_RATE, FRAMES_PER_BUFFER)?;
     settings.flags = pa::stream_flags::CLIP_OFF;
 
-    let wavetables = vec![note::wavetable(0), note::wavetable(5)];
+    // initialize a synth, and enable C4 and C5 to play an octave
+    let mut synth = note::Synth::new();
+    if let Some(_) = synth.set_note(44, true) {}
+    if let Some(_) = synth.set_note(56, true) {}
 
     let mut phase = 0;
     let callback = move |pa::OutputStreamCallbackArgs { buffer, frames, .. }| {
         for i in 0..frames {
-            buffer[i] = note::wavejoin(&wavetables, phase);
+            buffer[i] = synth.wavejoin(phase);
             phase += 1;
         }
         pa::Continue
@@ -63,7 +66,7 @@ fn run() -> Result<(), pa::Error> {
 
     stream.stop()?;
     stream.close()?;
-    
+
     write!(stdout, "{}", termion::cursor::Show).unwrap();
 
     Ok(())

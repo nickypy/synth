@@ -6,13 +6,50 @@ pub const SAMPLE_RATE: f64 = 44_100.0;
 
 const AMPLITUDE: f32 = 0.25;
 
-pub fn wavejoin(tables: &[Vec<f32>], phase: i64) -> f32 {
-    let mut total = 0.0;
-    for table in tables.iter() {
-        let index = phase % table.len() as i64;
-        total += table[index as usize];
+pub struct Note {
+    wavetable: Vec<f32>,
+    enabled: bool,
+}
+
+pub struct Synth {
+    notes: Vec<Note>,
+}
+
+impl Synth {
+    pub fn new() -> Synth {
+        let mut notes = Vec::new();
+        // middle C is C4, so we need to compute all the keys from C0-C8
+        for i in -44..=44 {
+            notes.push(Note {
+                wavetable: wavetable(i),
+                enabled: false,
+            });
+        }
+
+        Synth { notes }
     }
-    total
+
+    pub fn wavejoin(&self, phase: i64) -> f32 {
+        let mut total = 0.0;
+        for note in self.notes.iter() {
+            if note.enabled {
+                let table = &note.wavetable;
+                let index = phase % table.len() as i64;
+                total += table[index as usize];
+            }
+        }
+        total
+    }
+
+    pub fn set_note(&mut self, note_idx: usize, enabled: bool) -> Option<bool> {
+        match self.notes.get_mut(note_idx) {
+            Some(n) => {
+                n.enabled = enabled;
+                Some(enabled)
+            }
+            None => None,
+        }
+    }
 }
 
 pub fn wavetable(half_steps: i32) -> Vec<f32> {
